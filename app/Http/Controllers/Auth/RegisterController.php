@@ -42,6 +42,14 @@ class RegisterController extends Controller {
 	}
 
 	/**
+	 * Show the application registration form.
+	 *
+	 * @return \Illuminate\Http\Response
+	 */
+	public function showRegistrationForm() {
+		return view('custom.auth.register');
+	}
+	/**
 	 * Get a validator for an incoming registration request.
 	 *
 	 * @param  array  $data
@@ -51,10 +59,21 @@ class RegisterController extends Controller {
 		return Validator::make($data, [
 			'name' => 'required|string|max:255',
 			'email' => 'required|string|email|max:255|unique:users',
-			'password' => 'required|string|min:6|confirmed',
+			//'password' => 'required|string|min:6|confirmed',
 		]);
 	}
 
+	/**
+	 * Get a validator for an incoming registration password.
+	 *
+	 * @param  array  $data
+	 * @return \Illuminate\Contracts\Validation\Validator
+	 */
+	protected function validatorPassword(array $data) {
+		return Validator::make($data, [
+			'password' => 'required|string|min:6|confirmed',
+		]);
+	}
 	/**
 	 * Create a new user instance after a valid registration.
 	 *
@@ -65,7 +84,8 @@ class RegisterController extends Controller {
 		return User::create([
 			'name' => $data['name'],
 			'email' => $data['email'],
-			'password' => bcrypt($data['password']),
+			//'password' => bcrypt($data['password']),
+			'password' => '',
 			'email_token' => bin2hex(openssl_random_pseudo_bytes(30)),
 		]);
 	}
@@ -88,6 +108,27 @@ class RegisterController extends Controller {
 	}
 
 	/**
+	 * Set Password after email verification.
+	 *
+	 * @param \Illuminate\Http\Request $request
+	 * @return \Illuminate\Http\Response
+	 */
+
+	public function setPassword(Request $request) {
+
+		$this->validatorPassword($request->all())->validate();
+		$user = User::where('email_token', $request->email_token)->first();
+		if (!$user) {
+			return redirect('login')->with('flash-error', 'Invalid User!');
+		}
+
+		$user->password = bcrypt($request->password);
+		if ($user->save()) {
+			return view('custom.auth.passwordset', ['user' => $user]);
+		}
+	}
+
+	/**
 	 * Handle a email verification request for the application.
 	 *
 	 * @param $token
@@ -106,7 +147,8 @@ class RegisterController extends Controller {
 
 		$user->verified = 1;
 		if ($user->save()) {
-			return view('auth.emails.emailconfirm', ['user' => $user]);
+			return view('custom.auth.setpassword', ['user' => $user]);
 		}
 	}
 }
+
